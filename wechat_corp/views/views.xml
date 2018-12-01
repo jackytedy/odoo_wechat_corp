@@ -22,8 +22,6 @@
                     <field name="mobile"/>
                     <field name="email"/>
                     <field name="position"/>
-                    <!--<field name="status"/>-->
-                    <!--<field name="avatar"/>-->
                 </tree>
             </field>
         </record>
@@ -34,6 +32,9 @@
 			<field name="model">wechat.corp.users</field>
 			<field name="type">form</field>
 			<field name="arch" type="xml">
+                <header>
+                    <button name='set_hello' string="测试发信息" type="object" class="oe_highlight"/>
+                </header>
 			 	<form string="企业微信用户">
                     <sheet>
                         <group>

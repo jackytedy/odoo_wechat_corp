@@ -70,8 +70,7 @@ class AbstractApi(object) :
                 continue
             else :
                 break
-
-        return self.__checkResponse(response) 
+        return self.__checkResponse(response)
 
     @staticmethod
     def __appendArgs(url, args) : 
@@ -108,8 +107,7 @@ class AbstractApi(object) :
 
         if DEBUG is True : 
             print (realUrl, args)
-
-        return requests.post(realUrl, data=json.dumps(args).decode('unicode-escape').encode("utf-8")).json()
+        return requests.post(realUrl, data=json.dumps(args)).json()
 
     def __httpGet(self, url) :
         realUrl = self.__appendToken(url)
