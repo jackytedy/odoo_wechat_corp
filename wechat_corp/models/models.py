@@ -51,13 +51,13 @@ class wechat_corp_users(models.Model):
     ]
 
     @api.model
-    def create(self, values, only_create=0):
+    def create(self, values):
         """创建时同步到企业微信"""
         if not (values.get('mobile') or values.get('email') ):
             raise ValidationError(u'手机和邮箱不能同时为空')
 
         # 添加用户到企业微信(only_create=1时则不新增成员到企业微信)
-        if not only_create:
+        if not values:
             config = self.env['wechat.corp.config'].browse(1)
             if not (config.corp_id and config.corp_secret):
                 raise odoo.osv.osv.except_osv(u'未配置', u'请先配置企业微信！')
@@ -67,7 +67,7 @@ class wechat_corp_users(models.Model):
                 response = wxapi.httpCall(CORP_API_TYPE['USER_CREATE'],values)
                 _logger.info('wechat_corp_users create: %s' % str(response))
             except ApiException as e:
-                raise ValidationError(u'请求企业微信服务器异常: %s 异常信息: %s' % (e.errCode, e.errMsg))
+                raise ValidationError(u'请求企业微信服务器异常1: %s 异常信息: %s' % (e.errCode, e.errMsg))
         # 执行原create逻辑
         return super(wechat_corp_users, self).create(values)
 
@@ -81,7 +81,7 @@ class wechat_corp_users(models.Model):
                 response = wxapi.httpCall(CORP_API_TYPE['USER_DELETE'], {'userid' : rec.userid})
                 _logger.info('wechat_corp_users unlink: %s' % str(response))
             except ApiException as e:
-                raise ValidationError(u'请求企业微信服务器异常: %s 异常信息: %s' % (e.errCode, e.errMsg))
+                raise ValidationError(u'请求企业微信服务器异常2: %s 异常信息: %s' % (e.errCode, e.errMsg))
         # 执行原unlink逻辑
         return super(wechat_corp_users, self).unlink()
 
@@ -98,10 +98,14 @@ class wechat_corp_users(models.Model):
             response = wxapi.httpCall(CORP_API_TYPE['USER_UPDATE'], values)
             _logger.info('wechat_corp_users write: %s' % str(response))
         except ApiException as e:
-            raise ValidationError(u'请求企业微信服务器异常: %s 异常信息: %s' % (e.errCode, e.errMsg))
+            raise ValidationError(u'请求企业微信服务器异常3: %s 异常信息: %s' % (e.errCode, e.errMsg))
         return res
 
-    @api.model
+    @api.multi
+    def set_hello(self):
+        self.env['wxcorp.messages'].send(touser=self.userid, content='你好！欢迎加入！')
+
+    @api.multi
     def sync_users(self):
         """一键同步：先从企业微信上把用户同步下来，再从系统用户以增量方式同步到企业微信"""
         # 从企业微信同步用户
@@ -128,19 +132,18 @@ class wechat_corp_users(models.Model):
                 if userlist.get('email'):
                     res = self.search([('email', '=', userlist.get('email'))]).exists()
                     if res: continue
-
                 try:
                     self.create({
-                        'name': userlist['name'] if userlist['name']!='' else None,
-                        'userid': userlist['userid'] if userlist['userid']!='' else None,
-                        'email': userlist['email'] if userlist['email']!='' else None,
-                        'mobile': userlist['mobile'] if userlist['mobile']!='' else None,
-                    },only_create=1)
+                        'name': userlist['name'] or 'NONE',
+                        'userid': userlist['userid'] or 'NONE',
+                        'email': userlist['email'] or 'NONE',
+                        'mobile': userlist['mobile'] or 'NONE',
+                    })
                 except Exception as e:
                     raise ValidationError(u'从企业微信同步异常，异常信息: %s' %e)
 
         except ApiException as e:
-            raise ValidationError(u'请求企业微信服务器异常: %s 异常信息: %s' % (e.errCode, e.errMsg))
+            raise ValidationError(u'请求企业微信服务器异常4: %s 异常信息: %s' % (e.errCode, e.errMsg))
 
         # 从系统用户同步
         res_users = self.env['res.users'].search([('wxcorp_mobile','!=','')])
@@ -207,7 +210,7 @@ class wxcorp_messages(models.Model):
                     "safe": 0
                 }
             )
-            # print response['errmsg']
+            print(response)
             if response['errmsg']=='ok':
                 self.create({
                     'touser': touser,
@@ -243,7 +246,7 @@ class wechat_corp_totag(models.Model):
             response = wxapi.httpCall(CORP_API_TYPE['TAG_CREATE'],values)
             values['tagid'] = response['tagid']
         except ApiException as e:
-            raise ValidationError(u'请求企业微信服务器异常: %s 异常信息: %s' % (e.errCode, e.errMsg))
+            raise ValidationError(u'请求企业微信服务器异常5: %s 异常信息: %s' % (e.errCode, e.errMsg))
         # 执行原create逻辑
         return super(wechat_corp_totag, self).create(values)
 
@@ -256,7 +259,7 @@ class wechat_corp_totag(models.Model):
                 wxapi = CorpApi(config.corp_id, config.corp_secret)
                 wxapi.httpCall(CORP_API_TYPE['TAG_DELETE'], {'tagid' : rec.tagid})
             except ApiException as e:
-                raise ValidationError(u'请求企业微信服务器异常: %s 异常信息: %s' % (e.errCode, e.errMsg))
+                raise ValidationError(u'请求企业微信服务器异常6: %s 异常信息: %s' % (e.errCode, e.errMsg))
         # 执行原unlink逻辑
         return super(wechat_corp_totag, self).unlink()
 
@@ -276,7 +279,7 @@ class wechat_corp_totag(models.Model):
             try:
                 response = wxapi.httpCall(CORP_API_TYPE['TAG_UPDATE'], values)
             except ApiException as e:
-                raise ValidationError(u'请求企业微信服务器异常: %s 异常信息: %s' % (e.errCode, e.errMsg))
+                raise ValidationError(u'请求企业微信服务器异常7: %s 异常信息: %s' % (e.errCode, e.errMsg))
 
         # 编辑用户列表
         # 先清除标签已有的用户成员
@@ -289,7 +292,7 @@ class wechat_corp_totag(models.Model):
             try:
                 response = wxapi.httpCall(CORP_API_TYPE['TAG_DELETE_USER'], values)
             except ApiException as e:
-                raise ValidationError(u'请求企业微信服务器异常: %s 异常信息: %s' % (e.errCode, e.errMsg))
+                raise ValidationError(u'请求企业微信服务器异常8: %s 异常信息: %s' % (e.errCode, e.errMsg))
 
         # 添加用户到标签
         if values.get('userlist_ids'):
@@ -304,6 +307,6 @@ class wechat_corp_totag(models.Model):
                 try:
                     wxapi.httpCall(CORP_API_TYPE['TAG_ADD_USER'], values)
                 except ApiException as e:
-                    raise ValidationError(u'请求企业微信服务器异常: %s 异常信息: %s' % (e.errCode, e.errMsg))
+                    raise ValidationError(u'请求企业微信服务器异常9: %s 异常信息: %s' % (e.errCode, e.errMsg))
 
         return super(wechat_corp_totag, self).write(values)
